@@ -26,9 +26,9 @@ The API for item search based on barcode or name.
    dotnet run
    ```
 
-3. The API will be available at `http://localhost:5000`
+3. The API will be available at `http://localhost:5189`
 
-4. Access Swagger UI for API documentation: `http://localhost:5000/swagger`
+4. Access Swagger UI for API documentation: `http://localhost:5189/swagger`
 
 ## API Endpoints
 
