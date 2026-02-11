@@ -1,0 +1,711 @@
+openapi: 3.0.3
+info:
+  title: Item Search API
+  version: 1.0.0
+  description: API for searching items by name or barcode. Returned fields may vary by authentication scope.
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: https://sandbox.api.example.com
+    description: Sandbox
+security:
+  - ApiKeyAuth: []
+  - OAuth2: [item:read]
+paths:
+  /items/search:
+    get:
+      summary: Search items
+      description: Search items by name or barcode. Field visibility depends on granted scopes.
+      security:
+        - ApiKeyAuth: []
+        - OAuth2: [item:read]
+      parameters:
+        - name: name
+          in: query
+          description: Item name to search for.
+          required: false
+          schema:
+            type: string
+        - name: barcode
+          in: query
+          description: Barcode value to search for.
+          required: false
+          schema:
+            type: string
+        - name: country
+          in: query
+          description: Filter availability by country code (ISO 3166-1 alpha-2).
+          required: false
+          schema:
+            type: string
+        - name: store
+          in: query
+          description: Filter availability by store identifier.
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Max number of items returned.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of items to skip.
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      x-pagination:
+        style: offset-limit
+        maxLimit: 100
+        defaultLimit: 20
+      responses:
+        "200":
+          description: Search results.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemSearchResponse"
+              examples:
+                sample:
+                  summary: Example response
+                  value:
+                    total: 2
+                    limit: 20
+                    offset: 0
+                    hasMore: false
+                    items:
+                      - barcode: "5901234123457"
+                        name: "Natural Yogurt"
+                        description: "Plain yogurt 2%"
+                        producer: "DairyCo"
+                        nutrition:
+                          calories: 61
+                          fat: 2.0
+                          carbohydrates: 4.7
+                          protein: 3.4
+                        weightOrSize: 180
+                        unitOfMeasure: "g"
+                        availableInStore: ["store-krk-001", "store-waw-002"]
+                        categories: ["dairy", "yogurt"]
+                        availableInCountry: ["PL", "DE"]
+                        deposit: 0.0
+                        brand: "DairyCo"
+                        gtin: "05901234123457"
+                        imageUrl: "https://cdn.example.com/items/5901234123457.png"
+                        ingredients: "Milk, live cultures"
+                        allergens: ["milk"]
+                        price: 2.49
+                        currency: "PLN"
+                        expirationDate: "2026-03-01"
+                        storageInstructions: "Keep refrigerated"
+                        servingSize: "100 g"
+                        energyKcal: 61
+                        language: "pl"
+                        createdAt: "2026-02-11T09:15:00Z"
+                        updatedAt: "2026-02-11T10:10:00Z"
+                        lastUpdatedSource: "supplier"
+        "400":
+          description: Invalid request; name or barcode must be provided.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                missingQuery:
+                  summary: Missing name or barcode
+                  value:
+                    code: "VALIDATION_ERROR"
+                    message: "Either name or barcode is required."
+                    details: ["name or barcode must be provided"]
+        "401":
+          description: Unauthorized.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                unauthorized:
+                  value:
+                    code: "UNAUTHORIZED"
+                    message: "Missing or invalid API key."
+        "404":
+          description: No items found.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                notFound:
+                  value:
+                    code: "NOT_FOUND"
+                    message: "No items match the search criteria."
+        "403":
+          description: Forbidden; scope does not allow requested fields.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                forbidden:
+                  value:
+                    code: "FORBIDDEN"
+                    message: "Insufficient scope for requested data."
+        "429":
+          description: Rate limit exceeded.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+            Retry-After:
+              $ref: "#/components/headers/Retry-After"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                rateLimit:
+                  value:
+                    code: "RATE_LIMITED"
+                    message: "Too many requests. Try again later."
+        "500":
+          description: Server error.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                serverError:
+                  value:
+                    code: "INTERNAL_ERROR"
+                    message: "Unexpected error."
+    post:
+      summary: Search items (body)
+      description: Search items by name or barcode using a JSON payload. Field visibility depends on granted scopes.
+      security:
+        - ApiKeyAuth: []
+        - OAuth2: [item:read]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemSearchRequest"
+            examples:
+              byName:
+                summary: Search by name
+                value:
+                  name: "yogurt"
+                  country: "PL"
+                  limit: 20
+                  offset: 0
+              byBarcode:
+                summary: Search by barcode
+                value:
+                  barcode: "5901234123457"
+      responses:
+        "200":
+          description: Search results.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemSearchResponse"
+              examples:
+                sample:
+                  summary: Example response
+                  value:
+                    total: 1
+                    limit: 20
+                    offset: 0
+                    hasMore: false
+                    items:
+                      - barcode: "5901234123457"
+                        name: "Natural Yogurt"
+                        description: "Plain yogurt 2%"
+                        producer: "DairyCo"
+                        nutrition:
+                          calories: 61
+                          fat: 2.0
+                          carbohydrates: 4.7
+                          protein: 3.4
+                        weightOrSize: 180
+                        unitOfMeasure: "g"
+                        availableInStore: ["store-krk-001"]
+                        categories: ["dairy", "yogurt"]
+                        availableInCountry: ["PL"]
+                        deposit: 0.0
+                        brand: "DairyCo"
+                        gtin: "05901234123457"
+                        imageUrl: "https://cdn.example.com/items/5901234123457.png"
+                        ingredients: "Milk, live cultures"
+                        allergens: ["milk"]
+                        price: 2.49
+                        currency: "PLN"
+                        expirationDate: "2026-03-01"
+                        storageInstructions: "Keep refrigerated"
+                        servingSize: "100 g"
+                        energyKcal: 61
+                        language: "pl"
+                        createdAt: "2026-02-11T09:15:00Z"
+                        updatedAt: "2026-02-11T10:10:00Z"
+                        lastUpdatedSource: "supplier"
+        "400":
+          description: Invalid request; name or barcode must be provided.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                missingQuery:
+                  summary: Missing name or barcode
+                  value:
+                    code: "VALIDATION_ERROR"
+                    message: "Either name or barcode is required."
+                    details: ["name or barcode must be provided"]
+        "401":
+          description: Unauthorized.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                unauthorized:
+                  value:
+                    code: "UNAUTHORIZED"
+                    message: "Missing or invalid API key."
+        "404":
+          description: No items found.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                notFound:
+                  value:
+                    code: "NOT_FOUND"
+                    message: "No items match the search criteria."
+        "403":
+          description: Forbidden; scope does not allow requested fields.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                forbidden:
+                  value:
+                    code: "FORBIDDEN"
+                    message: "Insufficient scope for requested data."
+        "429":
+          description: Rate limit exceeded.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+            Retry-After:
+              $ref: "#/components/headers/Retry-After"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                rateLimit:
+                  value:
+                    code: "RATE_LIMITED"
+                    message: "Too many requests. Try again later."
+        "500":
+          description: Server error.
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/X-RateLimit-Limit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/X-RateLimit-Remaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/X-RateLimit-Reset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                serverError:
+                  value:
+                    code: "INTERNAL_ERROR"
+                    message: "Unexpected error."
+components:
+  headers:
+    X-RateLimit-Limit:
+      description: Request limit per time window.
+      schema:
+        type: integer
+    X-RateLimit-Remaining:
+      description: Requests remaining in the current window.
+      schema:
+        type: integer
+    X-RateLimit-Reset:
+      description: Unix timestamp when the rate limit resets.
+      schema:
+        type: integer
+    Retry-After:
+      description: Seconds to wait before retrying.
+      schema:
+        type: integer
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    OAuth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/oauth2/token
+          scopes:
+            item:read: Read basic item data.
+            item:read:nutrition: Read nutrition and ingredient data.
+            item:read:availability: Read store and country availability.
+            item:read:pricing: Read price and deposit information.
+            item:read:private: Read internal metadata fields.
+  schemas:
+    ItemSearchRequest:
+      type: object
+      description: Search request with name or barcode.
+      properties:
+        name:
+          type: string
+          nullable: true
+        barcode:
+          type: string
+          nullable: true
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code.
+          nullable: true
+        store:
+          type: string
+          nullable: true
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+          nullable: true
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+          nullable: true
+      anyOf:
+        - required: [name]
+        - required: [barcode]
+    ItemSearchResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+          nullable: true
+        limit:
+          type: integer
+          nullable: true
+        offset:
+          type: integer
+          nullable: true
+        hasMore:
+          type: boolean
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+          nullable: true
+      nullable: true
+    Item:
+      type: object
+      properties:
+        barcode:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        name:
+          type: string
+          nullable: true
+        producer:
+          type: string
+          nullable: true
+        nutrition:
+          $ref: "#/components/schemas/Nutrition"
+          nullable: true
+          description: Requires scope `item:read:nutrition`.
+          x-visibility:
+            scopes: [item:read:nutrition]
+        weightOrSize:
+          type: number
+          format: float
+          nullable: true
+        unitOfMeasure:
+          type: string
+          nullable: true
+        availableInStore:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: Requires scope `item:read:availability`.
+          x-visibility:
+            scopes: [item:read:availability]
+        categories:
+          type: array
+          items:
+            type: string
+          nullable: true
+        availableInCountry:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: Requires scope `item:read:availability`.
+          x-visibility:
+            scopes: [item:read:availability]
+        deposit:
+          type: number
+          format: float
+          nullable: true
+          description: Requires scope `item:read:pricing`.
+          x-visibility:
+            scopes: [item:read:pricing]
+        brand:
+          type: string
+          nullable: true
+        gtin:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+        ingredients:
+          type: string
+          nullable: true
+          description: Requires scope `item:read:nutrition`.
+          x-visibility:
+            scopes: [item:read:nutrition]
+        allergens:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: Requires scope `item:read:nutrition`.
+          x-visibility:
+            scopes: [item:read:nutrition]
+        price:
+          type: number
+          format: float
+          nullable: true
+          description: Requires scope `item:read:pricing`.
+          x-visibility:
+            scopes: [item:read:pricing]
+        currency:
+          type: string
+          nullable: true
+          description: Requires scope `item:read:pricing`.
+          x-visibility:
+            scopes: [item:read:pricing]
+        expirationDate:
+          type: string
+          format: date
+          nullable: true
+        storageInstructions:
+          type: string
+          nullable: true
+        servingSize:
+          type: string
+          nullable: true
+        energyKcal:
+          type: number
+          format: float
+          nullable: true
+        language:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Requires scope `item:read:private`.
+          x-visibility:
+            scopes: [item:read:private]
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Requires scope `item:read:private`.
+          x-visibility:
+            scopes: [item:read:private]
+        lastUpdatedSource:
+          type: string
+          nullable: true
+          description: Requires scope `item:read:private`.
+          x-visibility:
+            scopes: [item:read:private]
+      nullable: true
+    Nutrition:
+      type: object
+      properties:
+        calories:
+          type: number
+          format: float
+          nullable: true
+        fat:
+          type: number
+          format: float
+          nullable: true
+        saturatedFat:
+          type: number
+          format: float
+          nullable: true
+        carbohydrates:
+          type: number
+          format: float
+          nullable: true
+        sugars:
+          type: number
+          format: float
+          nullable: true
+        fiber:
+          type: number
+          format: float
+          nullable: true
+        protein:
+          type: number
+          format: float
+          nullable: true
+        salt:
+          type: number
+          format: float
+          nullable: true
+        sodium:
+          type: number
+          format: float
+          nullable: true
+        vitamins:
+          type: array
+          items:
+            type: string
+          nullable: true
+        minerals:
+          type: array
+          items:
+            type: string
+          nullable: true
+      nullable: true
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          nullable: true
+          enum:
+            - VALIDATION_ERROR
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - RATE_LIMITED
+            - INTERNAL_ERROR
+        message:
+          type: string
+          nullable: true
+        details:
+          type: array
+          items:
+            type: string
+          nullable: true
+      nullable: true
